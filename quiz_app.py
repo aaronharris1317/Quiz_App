@@ -12,9 +12,13 @@ def load_data():
 
 questions_raw = load_data()
 
-# ---- SAVE FILE ----
-SAVE_FILE = "progress.json"
+# ---- UNIQUE USER SESSION ----
+if "user_id" not in st.session_state:
+    st.session_state.user_id = str(random.randint(100000, 999999))
 
+SAVE_FILE = f"progress_{st.session_state.user_id}.json"
+
+# ---- SAVE / LOAD ----
 def save_progress():
     data = {
         "questions": st.session_state.questions,
@@ -61,20 +65,13 @@ if "initialized" not in st.session_state:
 
     st.session_state.initialized = True
 
-# ---- RESUME BUTTON ----
-if os.path.exists(SAVE_FILE):
-    st.info("You have saved progress.")
-    if st.button("▶ Resume Saved Quiz"):
-        st.session_state.initialized = False
-        st.rerun()
-
 # ---- MAIN ----
 questions = st.session_state.questions
 total = len(questions)
 
 st.title("🧠 Trivia Practice")
 
-# ---- PROGRESS BAR ----
+# ---- PROGRESS ----
 progress = st.session_state.current / total if total > 0 else 1
 st.progress(progress)
 st.write(f"Question {min(st.session_state.current + 1, total)} of {total}")
@@ -94,6 +91,7 @@ if st.session_state.current < total:
             "shuffled_choices" not in st.session_state
             or st.session_state.shuffled_choices is None
         ):
+
             original = [
                 ("A", q.get("choiceA")),
                 ("B", q.get("choiceB")),
@@ -136,9 +134,11 @@ if st.session_state.current < total:
 
     # ---- SUBMIT ----
     if st.button("Submit") and not st.session_state.answered:
+
         correct = str(
             st.session_state.current_correct if q["type"] == "mc" else q["answer"]
         ).strip().lower()
+
         user = str(user_answer).strip().lower()
 
         if user == correct:
@@ -206,7 +206,8 @@ else:
 
         if st.button("🔁 Practice Missed Questions"):
             st.session_state.questions = random.sample(
-                st.session_state.wrong, len(st.session_state.wrong)
+                st.session_state.wrong,
+                len(st.session_state.wrong)
             )
             st.session_state.current = 0
             st.session_state.score = 0
