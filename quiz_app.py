@@ -10,13 +10,17 @@ def load_data():
 
 questions_raw = load_data()
 
-# ---- INIT STATE ----
+# ---- INIT SESSION STATE ----
+if "mode" not in st.session_state:
+    st.session_state.mode = "normal"  # normal or review
+
 if "questions" not in st.session_state:
     st.session_state.questions = random.sample(questions_raw, len(questions_raw))
     st.session_state.current = 0
     st.session_state.score = 0
     st.session_state.wrong = []
-    st.session_state.show_explanation = False
+    st.session_state.answered = False
+    st.session_state.last_correct = None
 
 questions = st.session_state.questions
 total = len(questions)
@@ -24,14 +28,14 @@ total = len(questions)
 st.title("🧠 Trivia Practice")
 
 # ---- PROGRESS BAR ----
-progress = st.session_state.current / total
+progress = st.session_state.current / total if total > 0 else 1
 st.progress(progress)
-st.write(f"Question {st.session_state.current + 1} of {total}")
+st.write(f"Question {min(st.session_state.current + 1, total)} of {total}")
 
-# ---- QUIZ ----
+# ---- QUIZ FLOW ----
 if st.session_state.current < total:
-    q = questions[st.session_state.current]
 
+    q = questions[st.session_state.current]
     st.subheader(q["question"])
 
     user_answer = None
@@ -47,48 +51,57 @@ if st.session_state.current < total:
 
         choices = {k: v for k, v in choices.items() if pd.notna(v)}
 
-        user_answer = st.radio("Choose your answer:", list(choices.keys()))
+        display_choices = [f"{k}: {v}" for k, v in choices.items()]
+        selected = st.radio("Choose your answer:", display_choices)
+
+        user_answer = selected.split(":")[0]
 
     # ---- OPEN RESPONSE ----
     else:
         user_answer = st.text_input("Your answer:")
 
     # ---- SUBMIT ----
-    if st.button("Submit"):
+    if st.button("Submit") and not st.session_state.answered:
         correct = str(q["answer"]).strip().lower()
         user = str(user_answer).strip().lower()
 
         if user == correct:
-            st.success("✅ Correct!")
             st.session_state.score += 1
+            st.session_state.last_correct = True
         else:
-            st.error(f"❌ Correct answer: {q['answer']}")
             st.session_state.wrong.append(q)
+            st.session_state.last_correct = False
 
-        st.session_state.show_explanation = True
+        st.session_state.answered = True
         st.rerun()
 
-    # ---- EXPLANATION ----
-    if st.session_state.show_explanation:
+    # ---- SHOW RESULT + EXPLANATION ----
+    if st.session_state.answered:
+        if st.session_state.last_correct:
+            st.success("✅ Correct!")
+        else:
+            st.error(f"❌ Incorrect. Correct answer: {q['answer']}")
+
         if pd.notna(q.get("explanation")):
             st.info(f"💡 {q['explanation']}")
 
         if st.button("Next Question"):
             st.session_state.current += 1
-            st.session_state.show_explanation = False
+            st.session_state.answered = False
+            st.session_state.last_correct = None
             st.rerun()
 
-# ---- RESULTS ----
+# ---- QUIZ COMPLETE ----
 else:
     st.title("🎉 Quiz Complete!")
 
     score = st.session_state.score
-    percent = round((score / total) * 100, 1)
+    percent = round((score / total) * 100, 1) if total > 0 else 0
 
     st.write(f"### Score: {score} / {total}")
     st.write(f"### Percentage: {percent}%")
 
-    # ---- REVIEW ----
+    # ---- REVIEW WRONG ----
     if st.session_state.wrong:
         st.subheader("🔁 Review Mistakes")
 
@@ -100,14 +113,30 @@ else:
                 st.write(f"💡 {q['explanation']}")
 
             st.write("---")
+
+        # ✅ PRACTICE MISSED QUESTIONS BUTTON
+        if st.button("🔁 Practice Missed Questions"):
+            st.session_state.questions = random.sample(
+                st.session_state.wrong, len(st.session_state.wrong)
+            )
+            st.session_state.current = 0
+            st.session_state.score = 0
+            st.session_state.wrong = []
+            st.session_state.answered = False
+            st.session_state.last_correct = None
+            st.session_state.mode = "review"
+            st.rerun()
+
     else:
         st.success("🔥 Perfect score!")
 
-    # ---- RESTART ----
-    if st.button("Restart Quiz"):
+    # ---- RESTART FULL QUIZ ----
+    if st.button("Restart Full Quiz"):
         st.session_state.questions = random.sample(questions_raw, len(questions_raw))
         st.session_state.current = 0
         st.session_state.score = 0
         st.session_state.wrong = []
-        st.session_state.show_explanation = False
+        st.session_state.answered = False
+        st.session_state.last_correct = None
+        st.session_state.mode = "normal"
         st.rerun()
