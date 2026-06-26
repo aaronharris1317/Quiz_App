@@ -12,7 +12,7 @@ questions_raw = load_data()
 
 # ---- INIT SESSION STATE ----
 if "mode" not in st.session_state:
-    st.session_state.mode = "normal"  # normal or review
+    st.session_state.mode = "normal"
 
 if "questions" not in st.session_state:
     st.session_state.questions = random.sample(questions_raw, len(questions_raw))
@@ -21,6 +21,7 @@ if "questions" not in st.session_state:
     st.session_state.wrong = []
     st.session_state.answered = False
     st.session_state.last_correct = None
+    st.session_state.current_correct = None
 
 questions = st.session_state.questions
 total = len(questions)
@@ -40,18 +41,37 @@ if st.session_state.current < total:
 
     user_answer = None
 
-    # ---- MULTIPLE CHOICE ----
+    # ---- MULTIPLE CHOICE (RANDOMIZED) ----
     if q["type"] == "mc":
-        choices = {
-            "A": q.get("choiceA"),
-            "B": q.get("choiceB"),
-            "C": q.get("choiceC"),
-            "D": q.get("choiceD"),
-        }
 
-        choices = {k: v for k, v in choices.items() if pd.notna(v)}
+        # Store shuffled choices so they don't reshuffle on rerun
+        if "shuffled_choices" not in st.session_state:
+            original_choices = [
+                ("A", q.get("choiceA")),
+                ("B", q.get("choiceB")),
+                ("C", q.get("choiceC")),
+                ("D", q.get("choiceD")),
+            ]
 
-        display_choices = [f"{k}: {v}" for k, v in choices.items()]
+            original_choices = [(k, v) for k, v in original_choices if pd.notna(v)]
+
+            random.shuffle(original_choices)
+
+            letters = ["A", "B", "C", "D"]
+            new_choices = {}
+
+            for i, (orig_letter, text) in enumerate(original_choices):
+                new_letter = letters[i]
+                new_choices[new_letter] = text
+
+                if orig_letter == q["answer"]:
+                    st.session_state.current_correct = new_letter
+
+            st.session_state.shuffled_choices = new_choices
+
+        new_choices = st.session_state.shuffled_choices
+
+        display_choices = [f"{k}: {v}" for k, v in new_choices.items()]
         selected = st.radio("Choose your answer:", display_choices)
 
         user_answer = selected.split(":")[0]
@@ -62,7 +82,7 @@ if st.session_state.current < total:
 
     # ---- SUBMIT ----
     if st.button("Submit") and not st.session_state.answered:
-        correct = str(q["answer"]).strip().lower()
+        correct = str(st.session_state.current_correct if q["type"] == "mc" else q["answer"]).strip().lower()
         user = str(user_answer).strip().lower()
 
         if user == correct:
@@ -89,6 +109,8 @@ if st.session_state.current < total:
             st.session_state.current += 1
             st.session_state.answered = False
             st.session_state.last_correct = None
+            st.session_state.current_correct = None
+            st.session_state.shuffled_choices = None
             st.rerun()
 
 # ---- QUIZ COMPLETE ----
@@ -114,23 +136,26 @@ else:
 
             st.write("---")
 
-        # ✅ PRACTICE MISSED QUESTIONS BUTTON
+        # ---- PRACTICE MISSED ----
         if st.button("🔁 Practice Missed Questions"):
             st.session_state.questions = random.sample(
-                st.session_state.wrong, len(st.session_state.wrong)
+                st.session_state.wrong,
+                len(st.session_state.wrong)
             )
             st.session_state.current = 0
             st.session_state.score = 0
             st.session_state.wrong = []
             st.session_state.answered = False
             st.session_state.last_correct = None
+            st.session_state.current_correct = None
+            st.session_state.shuffled_choices = None
             st.session_state.mode = "review"
             st.rerun()
 
     else:
         st.success("🔥 Perfect score!")
 
-    # ---- RESTART FULL QUIZ ----
+    # ---- RESTART ----
     if st.button("Restart Full Quiz"):
         st.session_state.questions = random.sample(questions_raw, len(questions_raw))
         st.session_state.current = 0
@@ -138,5 +163,7 @@ else:
         st.session_state.wrong = []
         st.session_state.answered = False
         st.session_state.last_correct = None
+        st.session_state.current_correct = None
+        st.session_state.shuffled_choices = None
         st.session_state.mode = "normal"
         st.rerun()
