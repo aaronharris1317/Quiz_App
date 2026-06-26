@@ -69,7 +69,7 @@ if "initialized" not in st.session_state:
 questions = st.session_state.questions
 total = len(questions)
 
-st.title("🧠 Trivia Practice")
+st.title("🧠 ASBOG Practice")
 
 # ---- PROGRESS ----
 progress = st.session_state.current / total if total > 0 else 1
