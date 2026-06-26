@@ -190,4 +190,3 @@ else:
         st.session_state.shuffled_choices = None
         st.session_state.mode = "normal"
         st.rerun()
-``
