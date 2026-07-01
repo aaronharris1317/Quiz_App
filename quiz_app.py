@@ -27,6 +27,7 @@ def save_progress():
         "wrong": st.session_state.wrong,
         "mode": st.session_state.mode,
     }
+
     with open(SAVE_FILE, "w") as f:
         json.dump(data, f)
 
@@ -52,7 +53,10 @@ if "initialized" not in st.session_state:
         st.session_state.wrong = saved["wrong"]
         st.session_state.mode = saved["mode"]
     else:
-        st.session_state.questions = random.sample(questions_raw, len(questions_raw))
+        st.session_state.questions = random.sample(
+            questions_raw,
+            len(questions_raw)
+        )
         st.session_state.current = 0
         st.session_state.score = 0
         st.session_state.wrong = []
@@ -73,14 +77,37 @@ st.title("🧠 ASBOG Practice")
 
 # ---- PROGRESS ----
 progress = st.session_state.current / total if total > 0 else 1
+
 st.progress(progress)
-st.write(f"Question {min(st.session_state.current + 1, total)} of {total}")
+st.write(
+    f"Question {min(st.session_state.current + 1, total)} of {total}"
+)
 
 # ---- QUIZ ----
 if st.session_state.current < total:
 
     q = questions[st.session_state.current]
+
     st.subheader(q["question"])
+
+    # ---- IMAGE SUPPORT ----
+    if "image" in q and pd.notna(q["image"]):
+
+        image_path = os.path.join(
+            "images",
+            str(q["image"])
+        )
+
+        if os.path.exists(image_path):
+            st.image(
+                image_path,
+                caption="Question Image",
+                use_container_width=True
+            )
+        else:
+            st.warning(
+                f"Image not found: {q['image']}"
+            )
 
     user_answer = None
 
@@ -99,13 +126,19 @@ if st.session_state.current < total:
                 ("D", q.get("choiceD")),
             ]
 
-            original = [(k, v) for k, v in original if pd.notna(v)]
+            original = [
+                (k, v)
+                for k, v in original
+                if pd.notna(v)
+            ]
+
             random.shuffle(original)
 
             letters = ["A", "B", "C", "D"]
             new = {}
 
             for i, (orig_letter, text) in enumerate(original):
+
                 new_letter = letters[i]
                 new[new_letter] = text
 
@@ -115,7 +148,11 @@ if st.session_state.current < total:
             st.session_state.shuffled_choices = new
 
         new_choices = st.session_state.shuffled_choices
-        display = [f"{k}: {v}" for k, v in new_choices.items()]
+
+        display = [
+            f"{k}: {v}"
+            for k, v in new_choices.items()
+        ]
 
         selected = st.radio(
             "Choose your answer:",
@@ -136,7 +173,9 @@ if st.session_state.current < total:
     if st.button("Submit") and not st.session_state.answered:
 
         correct = str(
-            st.session_state.current_correct if q["type"] == "mc" else q["answer"]
+            st.session_state.current_correct
+            if q["type"] == "mc"
+            else q["answer"]
         ).strip().lower()
 
         user = str(user_answer).strip().lower()
@@ -149,7 +188,9 @@ if st.session_state.current < total:
             st.session_state.last_correct = False
 
         st.session_state.answered = True
+
         save_progress()
+
         st.rerun()
 
     # ---- RESULT ----
@@ -160,32 +201,46 @@ if st.session_state.current < total:
         if st.session_state.last_correct:
             st.success("✅ Correct!")
         else:
-            st.error(f"❌ Incorrect. Correct answer: {correct_letter}")
+            st.error(
+                f"❌ Incorrect. Correct answer: {correct_letter}"
+            )
 
         if q["type"] == "mc":
-            st.markdown("### ✅ Correct Answer:")
+
+            st.markdown("### ✅ Correct Answer")
+
             st.success(
-                f"{correct_letter}: {st.session_state.shuffled_choices[correct_letter]}"
+                f"{correct_letter}: "
+                f"{st.session_state.shuffled_choices[correct_letter]}"
             )
 
         if pd.notna(q.get("explanation")):
             st.info(f"💡 {q['explanation']}")
 
         if st.button("Next Question"):
+
             st.session_state.current += 1
             st.session_state.answered = False
             st.session_state.last_correct = None
             st.session_state.current_correct = None
             st.session_state.shuffled_choices = None
+
             save_progress()
+
             st.rerun()
 
-# ---- COMPLETE ----
+# ---- QUIZ COMPLETE ----
 else:
+
     st.title("🎉 Quiz Complete!")
 
     score = st.session_state.score
-    percent = round((score / total) * 100, 1) if total > 0 else 0
+
+    percent = (
+        round((score / total) * 100, 1)
+        if total > 0
+        else 0
+    )
 
     st.write(f"### Score: {score} / {total}")
     st.write(f"### Percentage: {percent}%")
@@ -193,22 +248,34 @@ else:
     clear_progress()
 
     if st.session_state.wrong:
+
         st.subheader("🔁 Review Mistakes")
 
-        for i, q in enumerate(st.session_state.wrong, 1):
+        for i, q in enumerate(
+            st.session_state.wrong,
+            start=1
+        ):
+
             st.write(f"**{i}. {q['question']}**")
-            st.write(f"Correct Answer: {q['answer']}")
+
+            st.write(
+                f"Correct Answer: {q['answer']}"
+            )
 
             if pd.notna(q.get("explanation")):
-                st.write(f"💡 {q['explanation']}")
+                st.write(
+                    f"💡 {q['explanation']}"
+                )
 
             st.write("---")
 
         if st.button("🔁 Practice Missed Questions"):
+
             st.session_state.questions = random.sample(
                 st.session_state.wrong,
                 len(st.session_state.wrong)
             )
+
             st.session_state.current = 0
             st.session_state.score = 0
             st.session_state.wrong = []
@@ -217,14 +284,21 @@ else:
             st.session_state.current_correct = None
             st.session_state.shuffled_choices = None
             st.session_state.mode = "review"
+
             clear_progress()
+
             st.rerun()
 
     else:
-        st.success("🔥 Perfect score!")
+        st.success("🔥 Perfect Score!")
 
     if st.button("Restart Full Quiz"):
-        st.session_state.questions = random.sample(questions_raw, len(questions_raw))
+
+        st.session_state.questions = random.sample(
+            questions_raw,
+            len(questions_raw)
+        )
+
         st.session_state.current = 0
         st.session_state.score = 0
         st.session_state.wrong = []
@@ -233,5 +307,7 @@ else:
         st.session_state.current_correct = None
         st.session_state.shuffled_choices = None
         st.session_state.mode = "normal"
+
         clear_progress()
+
         st.rerun()
