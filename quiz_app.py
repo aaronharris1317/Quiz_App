@@ -102,7 +102,7 @@ if st.session_state.current < total:
             st.image(
                 image_path,
                 caption="Question Image",
-                use_container_width=True
+                width="stretch"
             )
         else:
             st.warning(
