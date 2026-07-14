@@ -26,6 +26,7 @@ def save_progress():
         "score": st.session_state.score,
         "wrong": st.session_state.wrong,
         "mode": st.session_state.mode,
+        "skipped_count": st.session_state.skipped_count,
     }
 
     with open(SAVE_FILE, "w") as f:
@@ -52,6 +53,10 @@ if "initialized" not in st.session_state:
         st.session_state.score = saved["score"]
         st.session_state.wrong = saved["wrong"]
         st.session_state.mode = saved["mode"]
+        st.session_state.skipped_count = saved.get(
+            "skipped_count",
+            0
+        )
     else:
         st.session_state.questions = random.sample(
             questions_raw,
@@ -66,6 +71,8 @@ if "initialized" not in st.session_state:
     st.session_state.last_correct = None
     st.session_state.current_correct = None
     st.session_state.shuffled_choices = None
+    if not saved:
+        st.session_state.skipped_count = 0
 
     st.session_state.initialized = True
 
@@ -169,8 +176,17 @@ if st.session_state.current < total:
             disabled=st.session_state.answered
         )
 
+    # ---- SUBMIT / Skip ----
+    col1, col2 = st.columns(2)
+
+    with col1:
+        submit_clicked = st.button ("✅ Submit")
+
+    with col2:
+        skip_clicked = st.button("⏭ Skip Question")
+
     # ---- SUBMIT ----
-    if st.button("Submit") and not st.session_state.answered:
+    if submit_clicked and not st.session_state.answered:
 
         correct = str(
             st.session_state.current_correct
@@ -192,6 +208,26 @@ if st.session_state.current < total:
         save_progress()
 
         st.rerun()
+
+    # ---- SKIP QUESTION ----
+    if skip_clicked and not st.session_state.answered:
+
+        skipped_question = questions.pop(
+            st.session_state.current
+        )
+
+        questions.append(skipped_question)
+
+        st.session_state.questions = questions
+        st.session_state.skipped_count += 1
+
+        st.session_state.current_correct = None
+        st.session_state.shuffled_choices = None
+
+        save_progress()
+
+        st.rerun()
+  
 
     # ---- RESULT ----
     if st.session_state.answered:
@@ -244,6 +280,9 @@ else:
 
     st.write(f"### Score: {score} / {total}")
     st.write(f"### Percentage: {percent}%")
+    st.write(
+        f"### Questions Skipped: {st.session_state.skipped_count}"
+    )
 
     clear_progress()
 
@@ -279,6 +318,7 @@ else:
             st.session_state.current = 0
             st.session_state.score = 0
             st.session_state.wrong = []
+            st.session_state.skipped_count = 0
             st.session_state.answered = False
             st.session_state.last_correct = None
             st.session_state.current_correct = None
@@ -302,6 +342,7 @@ else:
         st.session_state.current = 0
         st.session_state.score = 0
         st.session_state.wrong = []
+        st.session_state.skipped_count = 0
         st.session_state.answered = False
         st.session_state.last_correct = None
         st.session_state.current_correct = None
