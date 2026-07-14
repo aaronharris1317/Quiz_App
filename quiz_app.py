@@ -177,13 +177,18 @@ if st.session_state.current < total:
         )
 
     # ---- SUBMIT / Skip ----
-    col1, col2 = st.columns(2)
+    submit_clicked = st.button("✅ Submit")
 
-    with col1:
-        submit_clicked = st.button ("✅ Submit")
+    # ---- SKIP BUTTON ----
+    st.markdown("---")
 
-    with col2:
-        skip_clicked = st.button("⏭ Skip Question")
+    left, right = st.columns([1,5])
+
+    with left:
+            skip_clicked = st.button(
+                "⏭ Skip Question",
+                disabled=st.session_state.answered
+            )
 
     # ---- SUBMIT ----
     if submit_clicked and not st.session_state.answered:
@@ -212,14 +217,18 @@ if st.session_state.current < total:
     # ---- SKIP QUESTION ----
     if skip_clicked and not st.session_state.answered:
 
-        skipped_question = questions.pop(
+        skipped_question = st.session_state.questions.pop(
             st.session_state.current
         )
 
-        questions.append(skipped_question)
+        st.session_state.questions.append(
+            skipped_question
+        )
 
-        st.session_state.questions = questions
         st.session_state.skipped_count += 1
+
+        # Count skipped question as viewed
+        st.session_state.current += 1
 
         st.session_state.current_correct = None
         st.session_state.shuffled_choices = None
@@ -227,8 +236,7 @@ if st.session_state.current < total:
         save_progress()
 
         st.rerun()
-  
-
+        
     # ---- RESULT ----
     if st.session_state.answered:
 
@@ -280,9 +288,10 @@ else:
 
     st.write(f"### Score: {score} / {total}")
     st.write(f"### Percentage: {percent}%")
-    st.write(
-        f"### Questions Skipped: {st.session_state.skipped_count}"
-    )
+    if st.session_state.skipped_count > 0:
+        st.info(
+            f"Questions Skipped: {st.session_state.skipped_count}"
+        )
 
     clear_progress()
 
